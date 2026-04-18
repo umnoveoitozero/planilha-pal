@@ -119,13 +119,98 @@ export async function convertMainFile(file: File, filialMap: FilialMap): Promise
     }
   }
 
+  // Locate pivot column indexes within newHeaders
+  const filialOutIdx = 0;
+  const grupoOutIdx = newHeaders.findIndex((h) => h.trim().toLowerCase() === "nome grupo empresa");
+  const codEmpresaOutIdx = newHeaders.findIndex((h) => h.trim().toLowerCase() === "código empresa");
+  const cpfOutIdx = newHeaders.findIndex((h) => h.trim().toLowerCase() === "cpf titular");
+  const valorOutIdx = newHeaders.length - 1;
+
+  const buildPivotAoa = (rows: unknown[][]): unknown[][] => {
+    // Hierarchy: Grupo -> Cod Empresa -> Filial -> CPF Titular
+    type Node = { total: number; children: Map<string, Node> };
+    const makeNode = (): Node => ({ total: 0, children: new Map() });
+    const root = makeNode();
+
+    const toNum = (v: unknown): number => {
+      if (typeof v === "number") return v;
+      if (v === null || v === undefined || v === "") return 0;
+      const s = String(v).replace(/\./g, "").replace(",", ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const keyOf = (v: unknown): string => {
+      const s = normalizeKey(v);
+      return s === "" ? "(em branco)" : s;
+    };
+
+    for (const r of rows) {
+      const path = [
+        keyOf(grupoOutIdx >= 0 ? r[grupoOutIdx] : ""),
+        keyOf(codEmpresaOutIdx >= 0 ? r[codEmpresaOutIdx] : ""),
+        keyOf(r[filialOutIdx]),
+        keyOf(cpfOutIdx >= 0 ? r[cpfOutIdx] : ""),
+      ];
+      const val = toNum(r[valorOutIdx]);
+      let node = root;
+      node.total += val;
+      for (const seg of path) {
+        let child = node.children.get(seg);
+        if (!child) {
+          child = makeNode();
+          node.children.set(seg, child);
+        }
+        child.total += val;
+        node = child;
+      }
+    }
+
+    const aoa: unknown[][] = [["Rótulos de Linha", "Soma de Valor Fat. Coparticipação"]];
+    const sortKeys = (m: Map<string, Node>) =>
+      Array.from(m.keys()).sort((a, b) => {
+        const na = Number(a);
+        const nb = Number(b);
+        if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+        return a.localeCompare(b);
+      });
+
+    const walk = (node: Node, depth: number) => {
+      for (const k of sortKeys(node.children)) {
+        const child = node.children.get(k)!;
+        const indent = "  ".repeat(depth);
+        aoa.push([indent + k, Number(child.total.toFixed(2))]);
+        if (child.children.size > 0) walk(child, depth + 1);
+      }
+    };
+    walk(root, 0);
+    aoa.push(["Total Geral", Number(root.total.toFixed(2))]);
+    return aoa;
+  };
+
   const buildBlob = (rows: unknown[][]): Blob => {
     const newWb = XLSX.utils.book_new();
+
+    // Sheet 1: Dados
     const aoaOut = [newHeaders, ...rows];
     const ws = XLSX.utils.aoa_to_sheet(aoaOut);
-    // column widths
     ws["!cols"] = newHeaders.map((h) => ({ wch: Math.min(Math.max(String(h).length + 2, 12), 40) }));
     XLSX.utils.book_append_sheet(newWb, ws, "Dados");
+
+    // Sheet 2: Dinâmica (pivot table style)
+    const pivotAoa = buildPivotAoa(rows);
+    const wsPivot = XLSX.utils.aoa_to_sheet(pivotAoa);
+    wsPivot["!cols"] = [{ wch: 50 }, { wch: 30 }];
+    // Format value column as number with 2 decimals
+    for (let r = 1; r < pivotAoa.length; r++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c: 1 });
+      const cell = wsPivot[cellRef];
+      if (cell && typeof cell.v === "number") {
+        cell.t = "n";
+        cell.z = "#,##0.00";
+      }
+    }
+    XLSX.utils.book_append_sheet(newWb, wsPivot, "Dinâmica");
+
     const out = XLSX.write(newWb, { bookType: "xlsx", type: "array" });
     return new Blob([out], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
