@@ -262,12 +262,19 @@ function RulesList({ mode }: { mode: Mode }) {
           "Mapeia o Código Empresa para o número da filial",
           "Gera planilhas por filial com aba Dinâmica",
         ]
-      : [
-          "Adiciona a coluna FILIAL como primeira coluna",
-          "Cria a coluna Valor_Fatura (VL_FATURA / 100, com sinal de SINAL_OPERACAO)",
-          "Mantém as demais colunas originais",
-          "Gera planilhas por filial com aba Dinâmica",
-        ];
+      : mode === "faturamento"
+        ? [
+            "Adiciona a coluna FILIAL como primeira coluna",
+            "Cria a coluna Valor_Fatura (VL_FATURA / 100, com sinal de SINAL_OPERACAO)",
+            "Mantém as demais colunas originais",
+            "Gera planilhas por filial com aba Dinâmica",
+          ]
+        : [
+            "Adiciona a coluna FILIAL como primeira coluna",
+            "Mapeia o CNPJ para o N° Filial usando a planilha de Relação de Filiais",
+            "Mantém todas as colunas originais da planilha principal",
+            "Gera planilhas por filial com aba Dinâmica",
+          ];
   return (
     <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
