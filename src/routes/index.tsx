@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, AlertCircle, ArrowRight, FileText, Receipt } from "lucide-react";
-import * as XLSX from "xlsx";
+import { Sparkles, Loader2, AlertCircle, ArrowRight, FileText, Receipt, Building2 } from "lucide-react";
 import { FileDropzone } from "@/components/FileDropzone";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import {
@@ -11,35 +10,12 @@ import {
   type ConversionResult,
 } from "@/lib/spreadsheet-converter";
 import { convertFaturamentoFile } from "@/lib/faturamento-converter";
+import {
+  parseCnpjFiliaisFile,
+  convertCoparticipacaoOficialFile,
+} from "@/lib/coparticipacao-oficial-converter";
 
-type Mode = "coparticipacao" | "faturamento";
-
-function normalizeHeader(value: unknown): string {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[_\s]+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-async function detectModeFromFile(file: File): Promise<Mode | null> {
-  const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: "array" });
-
-  for (const name of wb.SheetNames) {
-    const sheet = wb.Sheets[name];
-    if (!sheet?.["!ref"]) continue;
-    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" }) as unknown[][];
-    const headers = (rows[0] ?? []).map(normalizeHeader);
-    if (headers.includes("vl fatura") && headers.includes("sinal operacao")) return "faturamento";
-    if (headers.includes("codigo empresa") || headers.includes("valor fat. coparticipacao")) {
-      return "coparticipacao";
-    }
-  }
-
-  return null;
-}
+type Mode = "coparticipacao" | "faturamento" | "coparticipacao-oficial";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -70,13 +46,17 @@ function Index() {
     setProcessing(true);
     setError(null);
     try {
-      const map = await parseCodigosFile(codigosFile);
-      const detectedMode = await detectModeFromFile(mainFile);
-      const effectiveMode = detectedMode ?? mode;
-      const res =
-        effectiveMode === "coparticipacao"
-          ? await convertMainFile(mainFile, map)
-          : await convertFaturamentoFile(mainFile, map);
+      let res: ConversionResult;
+      if (mode === "coparticipacao-oficial") {
+        const cnpjMap = await parseCnpjFiliaisFile(codigosFile);
+        res = await convertCoparticipacaoOficialFile(mainFile, cnpjMap);
+      } else if (mode === "faturamento") {
+        const map = await parseCodigosFile(codigosFile);
+        res = await convertFaturamentoFile(mainFile, map);
+      } else {
+        const map = await parseCodigosFile(codigosFile);
+        res = await convertMainFile(mainFile, map);
+      }
       setResult(res);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro inesperado ao processar arquivos.");
@@ -98,6 +78,8 @@ function Index() {
     handleReset();
   };
 
+  const isOficial = mode === "coparticipacao-oficial";
+  const isFat = mode === "faturamento";
   const isCop = mode === "coparticipacao";
 
   return (
@@ -135,7 +117,7 @@ function Index() {
           <div
             role="tablist"
             aria-label="Tipo de planilha"
-            className="inline-flex rounded-2xl border border-border bg-card/80 p-1 shadow-[var(--shadow-soft)] backdrop-blur"
+            className="inline-flex flex-wrap justify-center gap-1 rounded-2xl border border-border bg-card/80 p-1 shadow-[var(--shadow-soft)] backdrop-blur"
           >
             <TabButton
               active={isCop}
@@ -144,10 +126,16 @@ function Index() {
               label="Coparticipação"
             />
             <TabButton
-              active={!isCop}
+              active={isFat}
               onClick={() => switchMode("faturamento")}
               icon={<Receipt className="h-4 w-4" />}
               label="Faturamento"
+            />
+            <TabButton
+              active={isOficial}
+              onClick={() => switchMode("coparticipacao-oficial")}
+              icon={<Building2 className="h-4 w-4" />}
+              label="Coparticipação Oficial"
             />
           </div>
         </div>
@@ -163,9 +151,11 @@ function Index() {
             >
               <FileDropzone
                 label={
-                  isCop
-                    ? "1. Planilha principal (Coparticipação)"
-                    : "1. Planilha principal (Faturamento)"
+                  isOficial
+                    ? "1. Planilha principal (Coparticipação Oficial)"
+                    : isFat
+                      ? "1. Planilha principal (Faturamento)"
+                      : "1. Planilha principal (Coparticipação)"
                 }
                 description="Aceita .xlsx ou .xls"
                 file={mainFile}
@@ -173,8 +163,16 @@ function Index() {
                 accent="primary"
               />
               <FileDropzone
-                label="2. Planilha de códigos (Empresa → Filial)"
-                description="Deve conter as colunas COD_EMPRESA e FILIAL"
+                label={
+                  isOficial
+                    ? "2. Relação de Filiais por CNPJ"
+                    : "2. Planilha de códigos (Empresa → Filial)"
+                }
+                description={
+                  isOficial
+                    ? "Deve conter as colunas CNPJ e N° Filial"
+                    : "Deve conter as colunas COD_EMPRESA e FILIAL"
+                }
                 file={codigosFile}
                 onFile={setCodigosFile}
                 accent="accent"
@@ -264,12 +262,19 @@ function RulesList({ mode }: { mode: Mode }) {
           "Mapeia o Código Empresa para o número da filial",
           "Gera planilhas por filial com aba Dinâmica",
         ]
-      : [
-          "Adiciona a coluna FILIAL como primeira coluna",
-          "Cria a coluna Valor_Fatura (VL_FATURA / 100, com sinal de SINAL_OPERACAO)",
-          "Mantém as demais colunas originais",
-          "Gera planilhas por filial com aba Dinâmica",
-        ];
+      : mode === "faturamento"
+        ? [
+            "Adiciona a coluna FILIAL como primeira coluna",
+            "Cria a coluna Valor_Fatura (VL_FATURA / 100, com sinal de SINAL_OPERACAO)",
+            "Mantém as demais colunas originais",
+            "Gera planilhas por filial com aba Dinâmica",
+          ]
+        : [
+            "Adiciona a coluna FILIAL como primeira coluna",
+            "Mapeia o CNPJ para o N° Filial usando a planilha de Relação de Filiais",
+            "Mantém todas as colunas originais da planilha principal",
+            "Gera planilhas por filial com aba Dinâmica",
+          ];
   return (
     <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
