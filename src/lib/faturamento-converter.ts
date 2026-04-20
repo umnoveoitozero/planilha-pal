@@ -92,11 +92,19 @@ export async function convertFaturamentoFile(
   const dataRows = aoa.slice(1);
 
   const findIdx = (name: string) =>
-    headers.findIndex((h) => h.trim().toLowerCase() === name.toLowerCase());
+    headers.findIndex((h) => normalizeHeader(h) === normalizeHeader(name));
 
-  const codEmpresaIdx = findIdx(COD_EMPRESA_COLUMN);
+  const findIdxAny = (names: string[]) =>
+    headers.findIndex((h) => {
+      const n = normalizeHeader(h);
+      return names.some((name) => normalizeHeader(name) === n);
+    });
+
+  const codEmpresaIdx = findIdxAny(COD_EMPRESA_ALIASES);
   if (codEmpresaIdx === -1) {
-    throw new Error(`Coluna "${COD_EMPRESA_COLUMN}" não encontrada na planilha de Faturamento.`);
+    throw new Error(
+      `Coluna do código da empresa não encontrada na planilha de Faturamento. Procurado por: ${COD_EMPRESA_ALIASES.join(", ")}.`,
+    );
   }
   const vlFaturaIdx = findIdx(VL_FATURA_COLUMN);
   if (vlFaturaIdx === -1) {
