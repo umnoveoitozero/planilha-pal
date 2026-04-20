@@ -2,10 +2,25 @@ import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import type { FilialMap, ConversionResult } from "./spreadsheet-converter";
 
-const COD_EMPRESA_COLUMN = "Código Empresa";
+// Possible column names for empresa code in Faturamento sheets
+const COD_EMPRESA_ALIASES = [
+  "cod_empresa",
+  "código empresa",
+  "codigo empresa",
+  "cod empresa",
+  "cd_empresa",
+];
 const VL_FATURA_COLUMN = "VL_FATURA";
 const SINAL_COLUMN = "SINAL_OPERACAO";
 const NEW_VALUE_COLUMN = "Valor_Fatura";
+
+function normalizeHeader(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
 
 function normalizeKey(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -77,11 +92,19 @@ export async function convertFaturamentoFile(
   const dataRows = aoa.slice(1);
 
   const findIdx = (name: string) =>
-    headers.findIndex((h) => h.trim().toLowerCase() === name.toLowerCase());
+    headers.findIndex((h) => normalizeHeader(h) === normalizeHeader(name));
 
-  const codEmpresaIdx = findIdx(COD_EMPRESA_COLUMN);
+  const findIdxAny = (names: string[]) =>
+    headers.findIndex((h) => {
+      const n = normalizeHeader(h);
+      return names.some((name) => normalizeHeader(name) === n);
+    });
+
+  const codEmpresaIdx = findIdxAny(COD_EMPRESA_ALIASES);
   if (codEmpresaIdx === -1) {
-    throw new Error(`Coluna "${COD_EMPRESA_COLUMN}" não encontrada na planilha de Faturamento.`);
+    throw new Error(
+      `Coluna do código da empresa não encontrada na planilha de Faturamento. Procurado por: ${COD_EMPRESA_ALIASES.join(", ")}.`,
+    );
   }
   const vlFaturaIdx = findIdx(VL_FATURA_COLUMN);
   if (vlFaturaIdx === -1) {
@@ -122,14 +145,16 @@ export async function convertFaturamentoFile(
 
   // Pivot indexes within newHeaders
   const filialOutIdx = 0;
-  const grupoOutIdx = newHeaders.findIndex(
-    (h) => h.trim().toLowerCase() === "nome grupo empresa",
-  );
-  const codEmpresaOutIdx = newHeaders.findIndex(
-    (h) => h.trim().toLowerCase() === "código empresa",
-  );
+  const grupoOutIdx = newHeaders.findIndex((h) => {
+    const k = normalizeHeader(h);
+    return k === "nome grupo empresa" || k === "nome_grupo_empresa" || k === "grupo empresa";
+  });
+  const codEmpresaOutIdx = newHeaders.findIndex((h) => {
+    const k = normalizeHeader(h);
+    return COD_EMPRESA_ALIASES.some((a) => normalizeHeader(a) === k);
+  });
   const cpfOutIdx = newHeaders.findIndex((h) => {
-    const k = h.trim().toLowerCase();
+    const k = normalizeHeader(h);
     return k === "cpf titular" || k === "cpf_titular" || k === "cpf";
   });
   const valorOutIdx = newHeaders.length - 1;
