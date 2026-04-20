@@ -145,14 +145,16 @@ export async function convertFaturamentoFile(
 
   // Pivot indexes within newHeaders
   const filialOutIdx = 0;
-  const grupoOutIdx = newHeaders.findIndex(
-    (h) => h.trim().toLowerCase() === "nome grupo empresa",
-  );
-  const codEmpresaOutIdx = newHeaders.findIndex(
-    (h) => h.trim().toLowerCase() === "código empresa",
-  );
+  const grupoOutIdx = newHeaders.findIndex((h) => {
+    const k = normalizeHeader(h);
+    return k === "nome grupo empresa" || k === "nome_grupo_empresa" || k === "grupo empresa";
+  });
+  const codEmpresaOutIdx = newHeaders.findIndex((h) => {
+    const k = normalizeHeader(h);
+    return COD_EMPRESA_ALIASES.some((a) => normalizeHeader(a) === k);
+  });
   const cpfOutIdx = newHeaders.findIndex((h) => {
-    const k = h.trim().toLowerCase();
+    const k = normalizeHeader(h);
     return k === "cpf titular" || k === "cpf_titular" || k === "cpf";
   });
   const valorOutIdx = newHeaders.length - 1;
