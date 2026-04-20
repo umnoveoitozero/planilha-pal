@@ -46,13 +46,17 @@ function Index() {
     setProcessing(true);
     setError(null);
     try {
-      const map = await parseCodigosFile(codigosFile);
-      const detectedMode = await detectModeFromFile(mainFile);
-      const effectiveMode = detectedMode ?? mode;
-      const res =
-        effectiveMode === "coparticipacao"
-          ? await convertMainFile(mainFile, map)
-          : await convertFaturamentoFile(mainFile, map);
+      let res: ConversionResult;
+      if (mode === "coparticipacao-oficial") {
+        const cnpjMap = await parseCnpjFiliaisFile(codigosFile);
+        res = await convertCoparticipacaoOficialFile(mainFile, cnpjMap);
+      } else if (mode === "faturamento") {
+        const map = await parseCodigosFile(codigosFile);
+        res = await convertFaturamentoFile(mainFile, map);
+      } else {
+        const map = await parseCodigosFile(codigosFile);
+        res = await convertMainFile(mainFile, map);
+      }
       setResult(res);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro inesperado ao processar arquivos.");
@@ -74,6 +78,8 @@ function Index() {
     handleReset();
   };
 
+  const isOficial = mode === "coparticipacao-oficial";
+  const isFat = mode === "faturamento";
   const isCop = mode === "coparticipacao";
 
   return (
