@@ -117,7 +117,7 @@ function Index() {
           <div
             role="tablist"
             aria-label="Tipo de planilha"
-            className="inline-flex rounded-2xl border border-border bg-card/80 p-1 shadow-[var(--shadow-soft)] backdrop-blur"
+            className="inline-flex flex-wrap justify-center gap-1 rounded-2xl border border-border bg-card/80 p-1 shadow-[var(--shadow-soft)] backdrop-blur"
           >
             <TabButton
               active={isCop}
@@ -126,10 +126,16 @@ function Index() {
               label="Coparticipação"
             />
             <TabButton
-              active={!isCop}
+              active={isFat}
               onClick={() => switchMode("faturamento")}
               icon={<Receipt className="h-4 w-4" />}
               label="Faturamento"
+            />
+            <TabButton
+              active={isOficial}
+              onClick={() => switchMode("coparticipacao-oficial")}
+              icon={<Building2 className="h-4 w-4" />}
+              label="Coparticipação Oficial"
             />
           </div>
         </div>
@@ -145,9 +151,11 @@ function Index() {
             >
               <FileDropzone
                 label={
-                  isCop
-                    ? "1. Planilha principal (Coparticipação)"
-                    : "1. Planilha principal (Faturamento)"
+                  isOficial
+                    ? "1. Planilha principal (Coparticipação Oficial)"
+                    : isFat
+                      ? "1. Planilha principal (Faturamento)"
+                      : "1. Planilha principal (Coparticipação)"
                 }
                 description="Aceita .xlsx ou .xls"
                 file={mainFile}
@@ -155,8 +163,16 @@ function Index() {
                 accent="primary"
               />
               <FileDropzone
-                label="2. Planilha de códigos (Empresa → Filial)"
-                description="Deve conter as colunas COD_EMPRESA e FILIAL"
+                label={
+                  isOficial
+                    ? "2. Relação de Filiais por CNPJ"
+                    : "2. Planilha de códigos (Empresa → Filial)"
+                }
+                description={
+                  isOficial
+                    ? "Deve conter as colunas CNPJ e N° Filial"
+                    : "Deve conter as colunas COD_EMPRESA e FILIAL"
+                }
                 file={codigosFile}
                 onFile={setCodigosFile}
                 accent="accent"
