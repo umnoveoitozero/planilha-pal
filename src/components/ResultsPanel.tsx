@@ -50,7 +50,7 @@ export function ResultsPanel({ result, onReset }: ResultsPanelProps) {
         <button
           onClick={handleDownloadAll}
           disabled={zipping}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--gradient-primary)] px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-transform hover:scale-[1.01] disabled:opacity-60"
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--gradient-primary)] px-5 py-3 text-sm font-semibold text-slate-900 shadow-[var(--shadow-elegant)] transition-transform hover:scale-[1.01] disabled:opacity-60"
         >
           <Package className="h-4 w-4" />
           {zipping ? "Compactando..." : "Baixar tudo (.zip)"}
