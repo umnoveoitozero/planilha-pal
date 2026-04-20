@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, AlertCircle, ArrowRight, FileText, Receipt } from "lucide-react";
-import * as XLSX from "xlsx";
+import { Sparkles, Loader2, AlertCircle, ArrowRight, FileText, Receipt, Building2 } from "lucide-react";
 import { FileDropzone } from "@/components/FileDropzone";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import {
@@ -11,35 +10,12 @@ import {
   type ConversionResult,
 } from "@/lib/spreadsheet-converter";
 import { convertFaturamentoFile } from "@/lib/faturamento-converter";
+import {
+  parseCnpjFiliaisFile,
+  convertCoparticipacaoOficialFile,
+} from "@/lib/coparticipacao-oficial-converter";
 
-type Mode = "coparticipacao" | "faturamento";
-
-function normalizeHeader(value: unknown): string {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[_\s]+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-async function detectModeFromFile(file: File): Promise<Mode | null> {
-  const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: "array" });
-
-  for (const name of wb.SheetNames) {
-    const sheet = wb.Sheets[name];
-    if (!sheet?.["!ref"]) continue;
-    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" }) as unknown[][];
-    const headers = (rows[0] ?? []).map(normalizeHeader);
-    if (headers.includes("vl fatura") && headers.includes("sinal operacao")) return "faturamento";
-    if (headers.includes("codigo empresa") || headers.includes("valor fat. coparticipacao")) {
-      return "coparticipacao";
-    }
-  }
-
-  return null;
-}
+type Mode = "coparticipacao" | "faturamento" | "coparticipacao-oficial";
 
 export const Route = createFileRoute("/")({
   component: Index,
