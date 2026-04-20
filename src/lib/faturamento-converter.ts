@@ -2,10 +2,25 @@ import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import type { FilialMap, ConversionResult } from "./spreadsheet-converter";
 
-const COD_EMPRESA_COLUMN = "Código Empresa";
+// Possible column names for empresa code in Faturamento sheets
+const COD_EMPRESA_ALIASES = [
+  "cod_empresa",
+  "código empresa",
+  "codigo empresa",
+  "cod empresa",
+  "cd_empresa",
+];
 const VL_FATURA_COLUMN = "VL_FATURA";
 const SINAL_COLUMN = "SINAL_OPERACAO";
 const NEW_VALUE_COLUMN = "Valor_Fatura";
+
+function normalizeHeader(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
 
 function normalizeKey(value: unknown): string {
   if (value === null || value === undefined) return "";
