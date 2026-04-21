@@ -14,6 +14,7 @@ import {
   parseCnpjFiliaisFile,
   convertCoparticipacaoOficialFile,
 } from "@/lib/coparticipacao-oficial-converter";
+import logoBhr from "@/assets/logo-bhr.png";
 
 type Mode = "coparticipacao" | "faturamento" | "coparticipacao-oficial";
 
@@ -90,6 +91,11 @@ function Index() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-14 text-center"
         >
+          <img
+            src={logoBhr}
+            alt="BHR Seguros, Benefícios e Consórcios"
+            className="mx-auto mb-8 h-16 w-auto sm:h-20"
+          />
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
             Processamento local · seus dados não saem do navegador
