@@ -139,7 +139,7 @@ function Index() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="space-y-5 rounded-3xl border border-border bg-card/80 p-6 shadow-[var(--shadow-soft)] backdrop-blur sm:p-8"
+              className="space-y-7 rounded-2xl border border-border bg-card p-7 sm:p-10"
             >
               <FileDropzone
                 label={
