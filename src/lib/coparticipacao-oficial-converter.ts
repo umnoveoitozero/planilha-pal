@@ -14,7 +14,10 @@ function normalizeHeader(s: unknown): string {
 
 function normalizeCnpj(value: unknown): string {
   if (value === null || value === undefined) return "";
-  return String(value).replace(/\D/g, "");
+  let s = String(value).replace(/\D/g, "");
+  // CNPJs lidos como número podem perder zeros à esquerda — completar até 14 dígitos
+  if (s.length > 0 && s.length < 14) s = s.padStart(14, "0");
+  return s;
 }
 
 function normalizeKey(value: unknown): string {
@@ -109,13 +112,26 @@ export async function convertCoparticipacaoOficialFile(
     return newHeaders.findIndex((h) => set.has(normalizeHeader(h)));
   };
   const filialOutIdx = 0;
-  const grupoOutIdx = findHeader("nome grupo empresa", "grupo empresa", "nome do grupo");
-  const codEmpresaOutIdx = findHeader("codigo empresa", "cod empresa", "cod_empresa");
-  const cpfOutIdx = findHeader("cpf titular", "cpf");
+  const grupoOutIdx = findHeader(
+    "nome grupo empresa",
+    "grupo empresa",
+    "grupo_empresa",
+    "nome do grupo",
+  );
+  const codEmpresaOutIdx = findHeader(
+    "codigo empresa",
+    "cod empresa",
+    "cod_empresa",
+    "num contrato",
+    "num_contrato",
+  );
+  const cpfOutIdx = findHeader("cpf titular", "cpf_titular", "cpf");
   const valorOutIdx = findHeader(
     "valor fat. coparticipacao",
     "valor fat coparticipacao",
     "valor coparticipacao",
+    "vlr participacao",
+    "vlr_participacao",
     "valor",
   );
 
@@ -178,7 +194,7 @@ export async function convertCoparticipacaoOficialFile(
       }
     }
 
-    const aoa: unknown[][] = [["Rótulos de Linha", "Soma de Valor Fat. Coparticipação"]];
+    const aoa: unknown[][] = [["Rótulos de Linha", "Soma de Valor"]];
     const sortKeys = (m: Map<string, Node>) =>
       Array.from(m.keys()).sort((a, b) => {
         const na = Number(a);
