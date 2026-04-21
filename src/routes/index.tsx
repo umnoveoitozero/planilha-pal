@@ -167,7 +167,7 @@ function Index() {
                 }
                 file={codigosFile}
                 onFile={setCodigosFile}
-                accent="accent"
+                accent="primary"
               />
 
               {error && (
@@ -184,7 +184,7 @@ function Index() {
               <button
                 onClick={handleProcess}
                 disabled={!canProcess}
-                className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--gradient-primary)] px-6 py-3.5 text-base font-semibold text-slate-900 shadow-[var(--shadow-elegant)] transition-all hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-base font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {processing ? (
                   <>
@@ -233,9 +233,9 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+      className={`relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
         active
-          ? "bg-[var(--gradient-primary)] text-slate-900 shadow-[var(--shadow-elegant)]"
+          ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:text-foreground"
       }`}
     >
