@@ -1,7 +1,8 @@
 import * as XLSX from "xlsx";
 import type { ConversionResult } from "./spreadsheet-converter";
 
-export type CnpjFilialMap = Map<string, string>;
+export type CnpjFilialInfo = { filial: string; codigo: string };
+export type CnpjFilialMap = Map<string, CnpjFilialInfo>;
 
 function normalizeHeader(s: unknown): string {
   return String(s ?? "")
@@ -46,6 +47,18 @@ export async function parseCnpjFiliaisFile(file: File): Promise<CnpjFilialMap> {
     const n = normalizeHeader(k);
     return n.includes("filial") || n === "n filial" || n === "no filial" || n === "num filial";
   });
+  const codigoKey = sampleKeys.find((k) => {
+    const n = normalizeHeader(k);
+    return (
+      n === "cod empresa" ||
+      n === "codigo empresa" ||
+      n === "cod_empresa" ||
+      n === "codigo" ||
+      n === "cod" ||
+      n.includes("cod empresa") ||
+      n.includes("codigo empresa")
+    );
+  });
 
   if (!cnpjKey || !filialKey) {
     throw new Error(
@@ -57,7 +70,8 @@ export async function parseCnpjFiliaisFile(file: File): Promise<CnpjFilialMap> {
   for (const row of rows) {
     const cnpj = normalizeCnpj(row[cnpjKey]);
     const fil = normalizeKey(row[filialKey]);
-    if (cnpj && fil) map.set(cnpj, fil);
+    const cod = codigoKey ? normalizeKey(row[codigoKey]) : "";
+    if (cnpj && fil) map.set(cnpj, { filial: fil, codigo: cod });
   }
 
   if (map.size === 0) {
@@ -104,7 +118,7 @@ export async function convertCoparticipacaoOficialFile(
     throw new Error('Coluna "CNPJ" não encontrada na planilha principal.');
   }
 
-  const newHeaders = ["FILIAL", ...headers];
+  const newHeaders = ["FILIAL", "CODIGO", ...headers];
 
   // Locate columns for pivot (in newHeaders space)
   const findHeader = (...candidates: string[]): number => {
@@ -119,6 +133,7 @@ export async function convertCoparticipacaoOficialFile(
     "nome do grupo",
   );
   const codEmpresaOutIdx = findHeader(
+    "codigo",
     "codigo empresa",
     "cod empresa",
     "cod_empresa",
@@ -142,17 +157,18 @@ export async function convertCoparticipacaoOficialFile(
     if (row.every((v) => v === "" || v === null || v === undefined)) continue;
 
     const cnpj = normalizeCnpj(row[cnpjIdx]);
-    const filial = cnpjMap.get(cnpj);
+    const info = cnpjMap.get(cnpj);
 
     const padded = row.slice();
     while (padded.length < headers.length) padded.push("");
-    const newRow = [filial ?? "", ...padded];
+    const newRow = [info?.filial ?? "", info?.codigo ?? "", ...padded];
 
-    if (filial === undefined) {
+    if (info === undefined) {
       unmatched.push(newRow);
     } else {
-      if (!groups.has(filial)) groups.set(filial, []);
-      groups.get(filial)!.push(newRow);
+      const key = info.filial;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(newRow);
     }
   }
 
