@@ -1,7 +1,8 @@
 import * as XLSX from "xlsx";
 import type { ConversionResult } from "./spreadsheet-converter";
 
-export type CnpjFilialMap = Map<string, string>;
+export type CnpjFilialInfo = { filial: string; codigo: string };
+export type CnpjFilialMap = Map<string, CnpjFilialInfo>;
 
 function normalizeHeader(s: unknown): string {
   return String(s ?? "")
