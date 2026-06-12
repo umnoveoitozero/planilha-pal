@@ -47,6 +47,18 @@ export async function parseCnpjFiliaisFile(file: File): Promise<CnpjFilialMap> {
     const n = normalizeHeader(k);
     return n.includes("filial") || n === "n filial" || n === "no filial" || n === "num filial";
   });
+  const codigoKey = sampleKeys.find((k) => {
+    const n = normalizeHeader(k);
+    return (
+      n === "cod empresa" ||
+      n === "codigo empresa" ||
+      n === "cod_empresa" ||
+      n === "codigo" ||
+      n === "cod" ||
+      n.includes("cod empresa") ||
+      n.includes("codigo empresa")
+    );
+  });
 
   if (!cnpjKey || !filialKey) {
     throw new Error(
@@ -58,7 +70,8 @@ export async function parseCnpjFiliaisFile(file: File): Promise<CnpjFilialMap> {
   for (const row of rows) {
     const cnpj = normalizeCnpj(row[cnpjKey]);
     const fil = normalizeKey(row[filialKey]);
-    if (cnpj && fil) map.set(cnpj, fil);
+    const cod = codigoKey ? normalizeKey(row[codigoKey]) : "";
+    if (cnpj && fil) map.set(cnpj, { filial: fil, codigo: cod });
   }
 
   if (map.size === 0) {
