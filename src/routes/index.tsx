@@ -268,8 +268,8 @@ function RulesList({ mode }: { mode: Mode }) {
             "Gera planilhas por filial com aba Dinâmica",
           ]
         : [
-            "Adiciona a coluna FILIAL como primeira coluna",
-            "Mapeia o CNPJ para o N° Filial usando a planilha de Relação de Filiais",
+            "Adiciona as colunas FILIAL e CODIGO como primeiras colunas",
+            "Mapeia o CNPJ para o N° Filial e Código (COD_EMPRESA) usando a planilha de Relação de Filiais",
             "Mantém todas as colunas originais da planilha principal",
             "Gera planilhas por filial com aba Dinâmica",
           ];
