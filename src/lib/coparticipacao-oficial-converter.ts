@@ -118,7 +118,7 @@ export async function convertCoparticipacaoOficialFile(
     throw new Error('Coluna "CNPJ" não encontrada na planilha principal.');
   }
 
-  const newHeaders = ["FILIAL", ...headers];
+  const newHeaders = ["FILIAL", "CODIGO", ...headers];
 
   // Locate columns for pivot (in newHeaders space)
   const findHeader = (...candidates: string[]): number => {
@@ -133,6 +133,7 @@ export async function convertCoparticipacaoOficialFile(
     "nome do grupo",
   );
   const codEmpresaOutIdx = findHeader(
+    "codigo",
     "codigo empresa",
     "cod empresa",
     "cod_empresa",
@@ -156,17 +157,18 @@ export async function convertCoparticipacaoOficialFile(
     if (row.every((v) => v === "" || v === null || v === undefined)) continue;
 
     const cnpj = normalizeCnpj(row[cnpjIdx]);
-    const filial = cnpjMap.get(cnpj);
+    const info = cnpjMap.get(cnpj);
 
     const padded = row.slice();
     while (padded.length < headers.length) padded.push("");
-    const newRow = [filial ?? "", ...padded];
+    const newRow = [info?.filial ?? "", info?.codigo ?? "", ...padded];
 
-    if (filial === undefined) {
+    if (info === undefined) {
       unmatched.push(newRow);
     } else {
-      if (!groups.has(filial)) groups.set(filial, []);
-      groups.get(filial)!.push(newRow);
+      const key = info.filial;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(newRow);
     }
   }
 
