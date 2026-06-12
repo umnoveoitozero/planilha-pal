@@ -168,7 +168,7 @@ function Index() {
                 }
                 description={
                   isOficial
-                    ? "Deve conter as colunas CNPJ e N° Filial"
+                    ? "Deve conter as colunas CNPJ, N° Filial e Código (COD_EMPRESA)"
                     : "Deve conter as colunas COD_EMPRESA e FILIAL"
                 }
                 file={codigosFile}
