@@ -6,6 +6,7 @@ export type FilialMap = Map<string, string>;
 export interface ConversionResult {
   files: { filial: string; blob: Blob; rows: number; filename: string }[];
   unmatched: { filial: "SEM_FILIAL"; blob: Blob; rows: number; filename: string } | null;
+  consolidated?: { blob: Blob; rows: number; filename: string } | null;
   totalRows: number;
   totalFiliais: number;
 }
@@ -254,6 +255,9 @@ export async function convertMainFile(file: File, filialMap: FilialMap): Promise
 
 export async function buildZip(result: ConversionResult): Promise<Blob> {
   const zip = new JSZip();
+  if (result.consolidated) {
+    zip.file(result.consolidated.filename, result.consolidated.blob);
+  }
   for (const f of result.files) {
     zip.file(f.filename, f.blob);
   }

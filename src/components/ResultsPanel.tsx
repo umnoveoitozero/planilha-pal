@@ -23,6 +23,9 @@ export function ResultsPanel({ result, onReset }: ResultsPanelProps) {
   };
 
   const allFiles = [
+    ...(result.consolidated
+      ? [{ ...result.consolidated, filial: "__CONSOLIDATED__" as const }]
+      : []),
     ...result.files,
     ...(result.unmatched ? [result.unmatched] : []),
   ];
@@ -71,6 +74,7 @@ export function ResultsPanel({ result, onReset }: ResultsPanelProps) {
         <ul className="divide-y divide-border">
           {allFiles.map((f, i) => {
             const isUnmatched = "filial" in f && f.filial === "SEM_FILIAL";
+            const isConsolidated = "filial" in f && f.filial === "__CONSOLIDATED__";
             return (
               <motion.li
                 key={f.filename}
@@ -82,14 +86,20 @@ export function ResultsPanel({ result, onReset }: ResultsPanelProps) {
                 <div
                   className={
                     "flex h-9 w-9 items-center justify-center rounded-lg " +
-                    (isUnmatched ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")
+                    (isUnmatched
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-primary/10 text-primary")
                   }
                 >
                   {isUnmatched ? <AlertTriangle className="h-4 w-4" /> : <FileSpreadsheet className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-foreground">
-                    {isUnmatched ? "Sem filial correspondente" : `Filial ${f.filial}`}
+                    {isUnmatched
+                      ? "Sem filial correspondente"
+                      : isConsolidated
+                        ? "Planilha principal (com FILIAL e CODIGO)"
+                        : `Filial ${(f as { filial: string }).filial}`}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {f.filename} · {f.rows.toLocaleString("pt-BR")} linhas

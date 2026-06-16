@@ -287,9 +287,28 @@ export async function convertCoparticipacaoOficialFile(
         }
       : null;
 
+  // Consolidated main spreadsheet with FILIAL and CODIGO columns added,
+  // preserving original row order (matched rows + unmatched at the end).
+  const allRows: unknown[][] = [];
+  for (const row of dataRows) {
+    if (row.every((v) => v === "" || v === null || v === undefined)) continue;
+    const cnpj = normalizeCnpj(row[cnpjIdx]);
+    const info = cnpjMap.get(cnpj);
+    const padded = row.slice();
+    while (padded.length < headers.length) padded.push("");
+    allRows.push([info?.filial ?? "", info?.codigo ?? "", ...padded]);
+  }
+
+  const consolidated = {
+    blob: buildBlob(allRows),
+    rows: allRows.length,
+    filename: "planilha_principal_com_filial.xlsx",
+  };
+
   return {
     files,
     unmatched: unmatchedResult,
+    consolidated,
     totalRows: dataRows.length,
     totalFiliais: files.length,
   };
