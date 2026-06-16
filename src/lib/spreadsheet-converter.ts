@@ -6,6 +6,7 @@ export type FilialMap = Map<string, string>;
 export interface ConversionResult {
   files: { filial: string; blob: Blob; rows: number; filename: string }[];
   unmatched: { filial: "SEM_FILIAL"; blob: Blob; rows: number; filename: string } | null;
+  consolidated?: { blob: Blob; rows: number; filename: string } | null;
   totalRows: number;
   totalFiliais: number;
 }
