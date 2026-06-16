@@ -23,6 +23,9 @@ export function ResultsPanel({ result, onReset }: ResultsPanelProps) {
   };
 
   const allFiles = [
+    ...(result.consolidated
+      ? [{ ...result.consolidated, filial: "__CONSOLIDATED__" as const }]
+      : []),
     ...result.files,
     ...(result.unmatched ? [result.unmatched] : []),
   ];
