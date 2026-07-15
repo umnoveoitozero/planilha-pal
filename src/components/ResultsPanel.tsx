@@ -98,7 +98,7 @@ export function ResultsPanel({ result, onReset }: ResultsPanelProps) {
                     {isUnmatched
                       ? "Sem filial correspondente"
                       : isConsolidated
-                        ? "Planilha principal (com FILIAL e CODIGO)"
+                        ? "Planilha principal consolidada"
                         : `Filial ${(f as { filial: string }).filial}`}
                   </p>
                   <p className="text-xs text-muted-foreground">
