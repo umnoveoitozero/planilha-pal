@@ -279,9 +279,23 @@ export async function convertFaturamentoFile(
         }
       : null;
 
+  // Consolidated main file: all rows (matched + unmatched) with FILIAL + Valor_Fatura
+  const allRows: unknown[][] = [];
+  for (const key of sortedKeys) {
+    for (const r of groups.get(key)!) allRows.push(r);
+  }
+  for (const r of unmatched) allRows.push(r);
+
+  const consolidated = {
+    blob: buildBlob(allRows),
+    rows: allRows.length,
+    filename: "faturamento_principal.xlsx",
+  };
+
   return {
     files,
     unmatched: unmatchedResult,
+    consolidated,
     totalRows: dataRows.length,
     totalFiliais: files.length,
   };
