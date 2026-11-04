@@ -26,7 +26,7 @@ export function groupMagRows(rows: unknown[][]): unknown[][] {
     const key = `${clean(r[COL_NOME]).toUpperCase()}|${clean(r[COL_PERC])}`;
     const existing = groups.get(key);
     if (!existing) {
-      const copy = r.map((c) => clean(c));
+      const copy: unknown[] = r.map((c) => clean(c));
       copy[COL_BASE] = parseBrNumber(r[COL_BASE]);
       copy[COL_COMISSAO] = parseBrNumber(r[COL_COMISSAO]);
       groups.set(key, copy);
