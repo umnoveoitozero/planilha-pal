@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, AlertCircle, ArrowRight, FileText, Receipt, Building2 } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle, ArrowRight, FileText, Receipt, Building2, Calculator } from "lucide-react";
 import { FileDropzone } from "@/components/FileDropzone";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import {
@@ -14,9 +14,10 @@ import {
   parseCnpjFiliaisFile,
   convertCoparticipacaoOficialFile,
 } from "@/lib/coparticipacao-oficial-converter";
+import { convertMagFile } from "@/lib/mag-converter";
 import logoBhr from "@/assets/logo-bhr.png";
 
-type Mode = "coparticipacao" | "faturamento" | "coparticipacao-oficial";
+type Mode = "coparticipacao" | "faturamento" | "coparticipacao-oficial" | "mag";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -40,15 +41,19 @@ function Index() {
   const [result, setResult] = useState<ConversionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const canProcess = !!mainFile && !!codigosFile && !processing;
+  const canProcess = !!mainFile && (mode === "mag" || !!codigosFile) && !processing;
 
   const handleProcess = async () => {
-    if (!mainFile || !codigosFile) return;
+    if (!mainFile || (mode !== "mag" && !codigosFile)) return;
     setProcessing(true);
     setError(null);
     try {
       let res: ConversionResult;
-      if (mode === "coparticipacao-oficial") {
+      if (mode === "mag") {
+        res = await convertMagFile(mainFile);
+      } else if (!codigosFile) {
+        return;
+      } else if (mode === "coparticipacao-oficial") {
         const cnpjMap = await parseCnpjFiliaisFile(codigosFile);
         res = await convertCoparticipacaoOficialFile(mainFile, cnpjMap);
       } else if (mode === "faturamento") {
@@ -82,6 +87,7 @@ function Index() {
   const isOficial = mode === "coparticipacao-oficial";
   const isFat = mode === "faturamento";
   const isCop = mode === "coparticipacao";
+  const isMag = mode === "mag";
 
   return (
     <div className="min-h-screen bg-background">
@@ -135,6 +141,12 @@ function Index() {
               icon={<Building2 className="h-4 w-4" />}
               label="Coparticipação Oficial"
             />
+            <TabButton
+              active={isMag}
+              onClick={() => switchMode("mag")}
+              icon={<Calculator className="h-4 w-4" />}
+              label="MAG"
+            />
           </div>
         </div>
 
@@ -149,18 +161,20 @@ function Index() {
             >
               <FileDropzone
                 label={
-                  isOficial
+                  isMag
+                    ? "1. Extrato MAG"
+                    : isOficial
                     ? "1. Planilha principal (Coparticipação Oficial)"
                     : isFat
                       ? "1. Planilha principal (Faturamento)"
                       : "1. Planilha principal (Coparticipação)"
                 }
-                description="Aceita .xlsx ou .xls"
+                description={isMag ? "Aceita .csv, .xlsx ou .xls" : "Aceita .xlsx ou .xls"}
                 file={mainFile}
                 onFile={setMainFile}
                 accent="primary"
               />
-              <FileDropzone
+              {!isMag && <FileDropzone
                 label={
                   isOficial
                     ? "2. Relação de Filiais por CNPJ"
@@ -174,7 +188,7 @@ function Index() {
                 file={codigosFile}
                 onFile={setCodigosFile}
                 accent="primary"
-              />
+              />}
 
               {error && (
                 <motion.div
@@ -267,7 +281,14 @@ function RulesList({ mode }: { mode: Mode }) {
             "Mantém as demais colunas originais",
             "Gera planilhas por filial com aba Dinâmica",
           ]
-        : [
+        : mode === "mag"
+          ? [
+              "Agrupa linhas com o mesmo Nome/Razão social (coluna D) e o mesmo % Comissão (coluna W)",
+              "Soma o Valor Comissão (coluna V) das linhas agrupadas",
+              "Soma o Valor base (coluna K) seguindo a mesma regra",
+              "Mantém as demais colunas da primeira linha de cada grupo",
+            ]
+          : [
             "Adiciona as colunas FILIAL e CODIGO como primeiras colunas",
             "Mapeia o CNPJ para o N° Filial e Código (COD_EMPRESA) usando a planilha de Relação de Filiais",
             "Mantém todas as colunas originais da planilha principal",
