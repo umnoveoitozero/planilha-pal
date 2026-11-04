@@ -58,7 +58,7 @@ export function FileDropzone({ label, description, file, onFile, accent = "prima
         <input
           ref={inputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls,.csv"
           className="hidden"
           onChange={(e) => onFile(e.target.files?.[0] ?? null)}
         />
