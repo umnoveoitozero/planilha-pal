@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, it as test } from "node:test";
+import { deepStrictEqual, strictEqual } from "node:assert";
 import { groupMagRows, sortMagRows } from "./mag-converter";
 
 const header = Array.from({ length: 23 }, () => "");
@@ -17,19 +18,19 @@ function row(name: string, date: unknown, percentage = "25%", base = "100,00", c
 
 describe("MAG output ordering", () => {
   test("orders names alphabetically using Portuguese accents", () => {
-    expect(sortMagRows([row("Zelia", "01/01/2026"), row("Bruna", "01/01/2026"), row("Álvaro", "01/01/2026")], header).map((r) => r[3]))
-      .toEqual(["Álvaro", "Bruna", "Zelia"]);
+    deepStrictEqual(sortMagRows([row("Zelia", "01/01/2026"), row("Bruna", "01/01/2026"), row("Álvaro", "01/01/2026")], header).map((r) => r[3]),
+      ["Álvaro", "Bruna", "Zelia"]);
   });
 
   test("orders dates oldest first within a name, with missing dates last", () => {
     const rows = [row("Ana", ""), row("Ana", "02/11/2026"), row("Ana", "15/10/2026")];
-    expect(sortMagRows(rows, header).map((r) => r[18])).toEqual(["15/10/2026", "02/11/2026", ""]);
+    deepStrictEqual(sortMagRows(rows, header).map((r) => r[18]), ["15/10/2026", "02/11/2026", ""]);
   });
 
   test("supports Excel serial dates and falls back to planned dates", () => {
     const planned = row("Ana", "");
     planned[17] = "01/01/2026";
-    expect(sortMagRows([row("Ana", 46327), planned], header)[0]).toEqual(planned);
+    deepStrictEqual(sortMagRows([row("Ana", 46327), planned], header)[0], planned);
   });
 
   test("preserves grouping and sums of K and V when ordering", () => {
@@ -39,8 +40,8 @@ describe("MAG output ordering", () => {
       row("Ana", "16/10/2026", "25%", "200,00", "50,00"),
       row("Ana", "01/10/2026", "10%", "50,00", "5,00"),
     ]), header);
-    expect(grouped).toHaveLength(3);
-    expect(grouped.map((r) => [r[3], r[22], r[10], r[21]])).toEqual([
+    strictEqual(grouped.length, 3);
+    deepStrictEqual(grouped.map((r) => [r[3], r[22], r[10], r[21]]), [
       ["Ana", "10%", 50, 5], ["Ana", "25%", 300, 75], ["Zelia", "25%", 100, 25],
     ]);
   });
