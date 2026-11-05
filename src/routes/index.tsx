@@ -29,6 +29,10 @@ export const Route = createFileRoute("/")({
         content:
           "Converta planilhas de coparticipação e faturamento automaticamente: aplica regras de colunas, mapeia o código da empresa para filial e separa os dados em planilhas individuais.",
       },
+      { property: "og:title", content: "BHR · Conversor de Planilhas por Filial" },
+      { property: "og:description", content: "Converta coparticipação, faturamento e extratos MAG com o conversor de planilhas BHR." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
 });
