@@ -9,9 +9,10 @@ interface FileDropzoneProps {
   file: File | null;
   onFile: (file: File | null) => void;
   accent?: "primary" | "accent";
+  accept?: string | undefined;
 }
 
-export function FileDropzone({ label, description, file, onFile, accent = "primary" }: FileDropzoneProps) {
+export function FileDropzone({ label, description, file, onFile, accent = "primary", accept = ".xlsx,.xls,.csv" }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -58,7 +59,7 @@ export function FileDropzone({ label, description, file, onFile, accent = "prima
         <input
           ref={inputRef}
           type="file"
-          accept=".xlsx,.xls,.csv"
+          accept={accept}
           className="hidden"
           onChange={(e) => onFile(e.target.files?.[0] ?? null)}
         />

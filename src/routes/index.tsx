@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, AlertCircle, ArrowRight, FileText, Receipt, Building2, Calculator } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle, ArrowRight, FileText, Receipt, Building2, Calculator, Shield, HeartPulse, Landmark } from "lucide-react";
 import { FileDropzone } from "@/components/FileDropzone";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import {
@@ -15,9 +15,12 @@ import {
   convertCoparticipacaoOficialFile,
 } from "@/lib/coparticipacao-oficial-converter";
 import { convertMagFile } from "@/lib/mag-converter";
+import { convertInsurerFile, INSURER_LABEL, type Insurer } from "@/lib/insurer-converter";
 import logoBhr from "@/assets/logo-bhr.png";
 
-type Mode = "coparticipacao" | "faturamento" | "coparticipacao-oficial" | "mag";
+type Mode = "coparticipacao" | "faturamento" | "coparticipacao-oficial" | "mag" | Insurer;
+
+const isInsurer = (m: Mode): m is Insurer => m === "bradesco" || m === "sulamerica" || m === "prudential";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -45,15 +48,18 @@ function Index() {
   const [result, setResult] = useState<ConversionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const canProcess = !!mainFile && (mode === "mag" || !!codigosFile) && !processing;
+  const singleFile = mode === "mag" || isInsurer(mode);
+  const canProcess = !!mainFile && (singleFile || !!codigosFile) && !processing;
 
   const handleProcess = async () => {
-    if (!mainFile || (mode !== "mag" && !codigosFile)) return;
+    if (!mainFile || (!singleFile && !codigosFile)) return;
     setProcessing(true);
     setError(null);
     try {
       let res: ConversionResult;
-      if (mode === "mag") {
+      if (isInsurer(mode)) {
+        res = await convertInsurerFile(mainFile, mode);
+      } else if (mode === "mag") {
         res = await convertMagFile(mainFile);
       } else if (!codigosFile) {
         return;
@@ -151,6 +157,24 @@ function Index() {
               icon={<Calculator className="h-4 w-4" />}
               label="MAG"
             />
+            <TabButton
+              active={mode === "bradesco"}
+              onClick={() => switchMode("bradesco")}
+              icon={<Shield className="h-4 w-4" />}
+              label="Bradesco"
+            />
+            <TabButton
+              active={mode === "sulamerica"}
+              onClick={() => switchMode("sulamerica")}
+              icon={<HeartPulse className="h-4 w-4" />}
+              label="Sul America"
+            />
+            <TabButton
+              active={mode === "prudential"}
+              onClick={() => switchMode("prudential")}
+              icon={<Landmark className="h-4 w-4" />}
+              label="Prudential"
+            />
           </div>
         </div>
 
@@ -165,7 +189,9 @@ function Index() {
             >
               <FileDropzone
                 label={
-                  isMag
+                  isInsurer(mode)
+                    ? `1. Extrato ${INSURER_LABEL[mode]}`
+                    : isMag
                     ? "1. Extrato MAG"
                     : isOficial
                     ? "1. Planilha principal (Coparticipação Oficial)"
@@ -173,12 +199,21 @@ function Index() {
                       ? "1. Planilha principal (Faturamento)"
                       : "1. Planilha principal (Coparticipação)"
                 }
-                description={isMag ? "Aceita .csv, .xlsx ou .xls" : "Aceita .xlsx ou .xls"}
+                description={
+                  mode === "bradesco"
+                    ? "Arquivo massivo em .xls ou .xlsx"
+                    : isInsurer(mode)
+                      ? "Extrato em PDF"
+                      : isMag
+                        ? "Aceita .csv, .xlsx ou .xls"
+                        : "Aceita .xlsx ou .xls"
+                }
+                accept={mode === "bradesco" ? ".xls,.xlsx" : isInsurer(mode) ? ".pdf" : undefined}
                 file={mainFile}
                 onFile={setMainFile}
                 accent="primary"
               />
-              {!isMag && <FileDropzone
+              {!singleFile && <FileDropzone
                 label={
                   isOficial
                     ? "2. Relação de Filiais por CNPJ"
@@ -270,8 +305,14 @@ function TabButton({
 }
 
 function RulesList({ mode }: { mode: Mode }) {
-  const rules =
-    mode === "coparticipacao"
+  const rules = isInsurer(mode)
+    ? [
+        "Lê apólice, nome, produto, data, prêmio, % e valor de comissão de cada lançamento",
+        "Soma prêmio e comissão quando a apólice e o % de comissão são iguais",
+        "Ordena por data (crescente)",
+        "Gera uma aba para cada produto (ex.: AUTO, SAÚDE, VIDA)",
+      ]
+    : mode === "coparticipacao"
       ? [
           "Apaga as colunas da Z em diante (mantém Valor Fat. Coparticipação)",
           "Adiciona a coluna FILIAL como primeira coluna",
