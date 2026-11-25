@@ -65,7 +65,9 @@ export function groupCommissions(records: CommissionRecord[]): Map<string, Group
 export function parseBradescoWorkbook(wb: XLSX.WorkBook): CommissionRecord[] {
   const out: CommissionRecord[] = [];
   for (const name of wb.SheetNames) {
-    const aoa = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[name]!, { header: 1, defval: "", raw: true });
+    const sheet = wb.Sheets[name];
+    if (!sheet) continue;
+    const aoa = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: true });
     const top = aoa[0] ?? [];
     const sub = aoa[1] ?? [];
     const produto = tidy(top[6]) || name;
@@ -74,19 +76,24 @@ export function parseBradescoWorkbook(wb: XLSX.WorkBook): CommissionRecord[] {
     const cApol = col(/^APOLICE/);
     const cNome = col(/^NOME/);
     const cPremio = col(/^VL_PREMIO/);
-    const cPerc = col(/^%$/);
+    const cPerc = col(/^(?:%\s*(?:COMISSAO)?|(?:PERCENTUAL|PERC|COMISSAO)\s*(?:DE\s+COMISSAO|%)?)$/);
     const cValor = col(/^VALOR$/);
     if (cApol < 0 || cValor < 0) continue;
-    for (const r of aoa.slice(2)) {
+    if (cPerc < 0) throw new Error(`Coluna de % de comissão não encontrada na aba ${name}. Não é possível agrupar com segurança.`);
+    for (const [rowIndex, r] of aoa.entries()) {
+      if (rowIndex < 2) continue;
       const apolice = tidy(r[cApol]);
       if (!apolice) continue;
       const sign = /RECUPERA|ESTORNO/i.test(tidy(r[cLanc])) ? -1 : 1;
+      const rawPercent = r[cPerc];
       out.push({
         data: tidy(r[2]),
         apolice,
         nome: tidy(r[cNome]),
         produto,
-        percentual: parseMoney(r[cPerc]),
+        percentual: typeof rawPercent === "number" && /%/.test(sheet[XLSX.utils.encode_cell({ r: rowIndex, c: cPerc })]?.z ?? "")
+          ? round2(rawPercent * 100)
+          : parseMoney(rawPercent),
         premio: sign * parseMoney(r[cPremio]),
         comissao: sign * parseMoney(r[cValor]),
       });
@@ -155,10 +162,16 @@ export function buildInsurerWorkbook(grouped: Map<string, GroupedRecord[]>): XLS
   const used = new Set<string>();
   const header = ["Data", "Apólice", "Nome", "Produto", "% Comissão", "Prêmio (R$)", "Valor Comissão (R$)", "Qtd. lançamentos"];
   for (const produto of [...grouped.keys()].sort((a, b) => a.localeCompare(b, "pt-BR"))) {
-    const rows = grouped.get(produto)!;
-    const body = rows.map((r) => [r.data, r.apolice, r.nome, r.produto, r.percentual, r.premio, r.comissao, r.lancamentos]);
+    const rows = grouped.get(produto);
+    if (!rows) continue;
+    const body = rows.map((r) => [r.data, r.apolice, r.nome, r.produto, r.percentual / 100, r.premio, r.comissao, r.lancamentos]);
     const total = ["TOTAL", "", "", "", "", round2(rows.reduce((s, r) => s + r.premio, 0)), round2(rows.reduce((s, r) => s + r.comissao, 0)), rows.reduce((s, r) => s + r.lancamentos, 0)];
     const ws = XLSX.utils.aoa_to_sheet([header, ...body, total]);
+    for (let r = 1; r <= body.length; r++) {
+      const cell = ws[XLSX.utils.encode_cell({ r, c: 4 })];
+      const percent = rows[r - 1]?.percentual ?? 0;
+      if (cell) cell.z = Number.isInteger(percent) ? "0%" : Number.isInteger(percent * 10) ? "0.0%" : "0.00%";
+    }
     for (let r = 1; r <= body.length + 1; r++) {
       for (const c of [5, 6]) {
         const cell = ws[XLSX.utils.encode_cell({ r, c })];

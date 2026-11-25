@@ -1,9 +1,38 @@
 import { describe, it as test } from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert";
-import { groupCommissions, parsePrudentialLines, type CommissionRecord } from "./insurer-converter";
+import * as XLSX from "xlsx";
+import { buildInsurerWorkbook, groupCommissions, parseBradescoWorkbook, parsePrudentialLines, type CommissionRecord } from "./insurer-converter";
 
 const rec = (o: Partial<CommissionRecord>): CommissionRecord => ({
   data: "10/10/2026", apolice: "1", nome: "A", produto: "VIDA", percentual: 20, premio: 100, comissao: 20, ...o,
+});
+
+test("exporta 20% e 25% sem juntar percentuais diferentes da mesma apólice", () => {
+  const wb = buildInsurerWorkbook(groupCommissions([rec({}), rec({ premio: 50, comissao: 10 }), rec({ percentual: 25, comissao: 25 })]));
+  const ws = wb.Sheets["VIDA"];
+  if (!ws) throw new Error("Aba VIDA ausente");
+  strictEqual(ws["E2"]?.v, 0.2);
+  strictEqual(XLSX.utils.format_cell(ws["E2"]), "20%");
+  strictEqual(XLSX.utils.format_cell(ws["E3"]), "25%");
+  strictEqual(ws["F2"]?.v, 150);
+  strictEqual(ws["G2"]?.v, 30);
+  strictEqual(ws["H2"]?.v, 2);
+});
+
+test("Bradesco lê % Comissão variável e preserva 0% explícito", () => {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ["", "", "", "", "", "", "AUTO"],
+    ["LANÇ", "APÓLICE", "Data", "NOME", "VL_PRÊMIO", "% Comissão", "VALOR"],
+    ["CRÉDITO", "1", "10/10/2026", "A", 100, "20,00", 20],
+    ["CRÉDITO", "1", "10/10/2026", "A", 100, 0.25, 25],
+    ["CRÉDITO", "1", "10/10/2026", "A", 100, "0,00", 0],
+  ]);
+  const percentCell = ws["F4"];
+  if (!percentCell) throw new Error("Percentual ausente");
+  percentCell.z = "0%";
+  XLSX.utils.book_append_sheet(wb, ws, "Fatura");
+  deepStrictEqual(parseBradescoWorkbook(wb).map((r) => r.percentual), [20, 25, 0]);
 });
 
 describe("Seguradoras: agrupamento por apólice e %", () => {
